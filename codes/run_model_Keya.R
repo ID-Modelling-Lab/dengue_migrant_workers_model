@@ -6,6 +6,7 @@ library(odin.dust)
 library(ggplot2)
 # library(ggpubr)
 library(dplyr)
+library(here)
 
 ## Human population parameters
 
@@ -29,7 +30,8 @@ n_country_population <- n_country_percent*N
 termination_rate <- 1/(42*365)
 
 # Recruitment rate
-recruitment_rate <- termination_rate
+recruitment_rate <- termination_rate 
+#+ 0.000001
 
 
 ## Mosquito parameters
@@ -38,7 +40,7 @@ recruitment_rate <- termination_rate
 daily_death_rate <- 1/10
 
 # Recruitment rate for mosquitoes
-vector_recruitment <- daily_death_rate
+vector_recruitment <- 1/10
 
 # Extrinsic incubation period
 ex_incubation_period <- 1/10
@@ -54,6 +56,8 @@ b <- 15
 
 # Transmission probability (human to vector)
 beta_h_to_v <- c(0.20, 0.20, 0.20, 0.20)
+
+beta_h_to_v_sec <-c(0.20,0.20,0.20,0.20)
 
 # Transmission probability (vector to human)
 beta_v_to_h <- c(0.166, 0.176, 0.152, 0.144)
@@ -115,7 +119,7 @@ seropositives <- function(mean_foi, age = mid_age){
 exposure_matrix <- sapply(foi_estimate$mean/4, seropositives)
 exposure_matrix <- t(exposure_matrix)
 rownames(exposure_matrix) <- foi_estimate$countries
-
+#print(exposure_matrix)
 
 # Levels of exposure
 exposure_0_array <- unname(exposure_matrix[, "no_exposure"])
@@ -139,16 +143,18 @@ R0 <- n_country_population*exposure_1plus_array
 S0_all =  n_country_population - rowSums(I0 + C0 + S0) - rowSums(I_ij0) - R0
 
 #factor
-factor <- 0.02095
+factor <- 0.0091
+  
 
 # Susceptible vectors
 S_v0 <- factor*N
+print(S_v0)
 
 # Exposed vectors
-E_v0 <- c(0,0,0,0)
+E_v0 <- c(10,10,10,10)
 
 # Infected vectors
-I_v0 <- c(1e-1,2e-2,1e-4,1e-5)
+I_v0 <-c(600,300,100,90) 
 
 
 # Total vector population
@@ -160,6 +166,7 @@ par <- list(
   n_serotypes = n_serotypes,
   b = b,
   beta_h_to_v = beta_h_to_v,
+  beta_h_to_v_sec = beta_h_to_v_sec,
   beta_v_to_h = beta_v_to_h,
   rho_1 = rho_1,
   rho_2 = rho_2,
@@ -190,7 +197,7 @@ par <- list(
 )
 
 
-path_to_model <- here::here("C:/Users/keyas/OneDrive/Documents/internships/code/model_baseline_Keya.R")
+path_to_model <- here::here("model_baseline_Keya.R")
 
 dengue_model <- odin.dust::odin_dust(path_to_model)
 
@@ -198,6 +205,7 @@ dengue_model <- odin.dust::odin_dust(path_to_model)
 model <- dengue_model$new(par, time = 1, n_particles = 1, ode_control = list(max_steps = 10000000, 
                                                                              step_size_min = 1e-14,
                                                                              debug_record_step_times = TRUE))
+
 ## no of year we want to run the simulation
 run_year <- 500
 
@@ -227,10 +235,8 @@ index_total_susceptible <- model$info()$index$total_susceptible
 index_pop_country <- model$info()$index$N_country
 index_seropositive <- model$info()$index$seropositive
 
-#+(n_country_population[]*exposure_1plus_array[]))
 
-### Annual infection for four different serotypes (Combined and Per country)
-target_annual_foi <- 0.1
+target_annual_foi <- 0.01
 
 foi <- array(out[index_foi,,],dim=c(n_serotypes,length(t)))
 
@@ -251,32 +257,36 @@ plot(foi_annual, type="l",ylim=c(0,0.5))+
   lines(rep(mean(tail(foi_annual, 20)),length(foi_annual)),type="l",col="red")+
   lines(rep(target_annual_foi,length(foi_annual)),type="l",col="blue")
 
-#print(mean(tail(foi_annual,20)))
+print(mean(tail(foi_annual,20)))
+
 
 #### Using the total infection calculations (Lines 31-39 on baseline file)
 
 ## calculate the percentage of susceptible population getting infected annually
 
 infection <- array(out[index_total_infection,,],dim=c(n_country,n_serotypes,length(t)))
-
+#print(infection[1:3,1:4,1:5])
 
 ## summing over serotype and get country wise infection
 infection_country <- apply(infection,c(1,3),sum)
+#dim(infection_country)
 
 ## now summing over country and make it annual infection
 total_infection_annual <- calc_yearly(colSums(infection_country))
+#plot(1:500,total_infection_annual,type="l",lwd=1.1,col="blue")
 
 ## annual susceptible
-susceptible <- array(out[index_total_susceptible,,],dim=c(length(t)))
-
-susceptible_annual <- calc_yearly_wo_sum(mat=susceptible,time_frequency=365)
+susceptible <- array(out[index_total_susceptible,,],dim=c(n_country,length(t)))
+susceptible_annual <- calc_yearly_wo_sum(colSums(susceptible),time_frequency = 365)
+#plot(1:500,susceptible_annual,type="l",lwd=1.1,col="red")
 
 ## Plot the percentage of susceptible getting dengue infection annually 
-### Error: Going above a 100% for avg FOI=0.1
 
-plot(100*total_infection_annual/susceptible_annual,type="l",ylim=c(0,110)) +
+plot((total_infection_annual)/susceptible_annual*100,type="l",ylim=c(0,110),xlab="Time (Years)",ylab="Proportion of infected population",main="Proportion of infected population (FOI=0.1)") +
   lines(rep(mean(100*total_infection_annual/susceptible_annual),length(100*total_infection_annual/susceptible_annual)), col="red")+
   lines(rep(100*target_annual_foi,length(foi_annual)),type="l",col="blue")
+
+print(mean(100*total_infection_annual/susceptible_annual))
 
 
 ### Further checks on Infection
@@ -292,20 +302,20 @@ infection_serotype_annual <- t(apply(infection_serotype, 1, calc_yearly))
 
 line_color <- c("red", "blue", "green", "black")
 
-tail_years <- 20
+tail_years <- 500
 
 matplot(1:tail_years,
         t(infection_serotype_annual)[(dim(infection_serotype_annual)[2] - tail_years + 1):dim(infection_serotype_annual)[2],],
         type = "l",
         lty  = 1,
-        lwd = 3,
+        lwd = 1,
         ylim = c(0,max(infection_serotype_annual)),
         col  = line_color,
         xlab = "Year",
         ylab = "Incidence of infection (serotype-wise)",
         xaxt = "n")
 
-axis(1, at = 1:tail_years, labels = 1:tail_years)
+axis(1,at=1:tail_years,labels=1:tail_years)
 legend("topright",
        legend = c("D1", "D2", "D3", "D4"),
        col    = line_color,
@@ -321,24 +331,24 @@ infection_country <- apply(infection , c(1,3), sum)
 
 # make it annual
 infection_country_annual <- t(apply(infection_country, 1, calc_yearly))
-
+dim(infection_country_annual)
 
 line_color <- c("darkred", "darkblue", "darkgreen")
 
-tail_years <- 20
+tail_years <- 500
 
 matplot(1:tail_years,
         t(infection_country_annual)[(dim(infection_country_annual)[2] - tail_years + 1):dim(infection_country_annual)[2],],
         type = "l",
         lty  = 1,
-        lwd = 3,
+        lwd = 1.5,
         ylim = c(0,max(infection_country_annual)),
         col  = line_color,
         xlab = "Year",
         ylab = "Incidence of infection (Nationality-wise)",
         xaxt = "n")
 
-axis(1, at = 1:tail_years, labels = 1:tail_years)
+axis(1,at=1:tail_years,labels=1:tail_years)
 legend("topright",
        legend = c("India", "Bangladesh", "China" ),
        col    = line_color,
@@ -346,52 +356,78 @@ legend("topright",
        lwd = 3)
 
 
+
 ### incidence per 100000 population for each nationalities 
 
-## ERROR?: (shows that the number of infections are the same regardless of nationality)
-
 pop_country <- array(out[index_pop_country,,], dim = c(n_country,length(t)))
+dim(pop_country)
 
-pop_country_annual <- t(apply(pop_country,1, calc_yearly_wo_sum, time_frequency = 365))
+plot(1:182500, pop_country[1,1:182500], type = "l", lty = 1, lwd = 1.5,col="red")
+
+pop_country_annual <- t(apply(pop_country,1, time_frequency = 365, calc_yearly_wo_sum))
+
+plot(1:500, pop_country_annual[1,1:500], type="l", lty=1, lwd=1.5, col="green")
 
 infection_country_annual_p_100k <- 100000*(infection_country_annual/pop_country_annual)
+#print(infection_country_annual_p_100k[1:3,1:20])
 
 
+## This graph works, but hard to see the changes since they overlap significantly (Is there any way to edit the formatting? or should I do 3 different graphs?)
 matplot(
   1:tail_years,
-  t(infection_country_annual_p_100k)[(dim(infection_country_annual_p_100k)[2] - tail_years + 1):dim(infection_country_annual_p_100k)[2],],
+  t(infection_country_annual_p_100k)[(dim(infection_country_annual_p_100k)[2] - tail_years + 1):dim(infection_country_annual_p_100k)[2],1:3],
   type = "l",
   lty  = 1,
-  lwd = 3,
+  lwd = 1,
   ylim = c(0, max(infection_country_annual_p_100k)),
+  xlim = c(0, tail_years),
   col = line_color,
   xlab = "Year",
   ylab = "Incidence of infection (Nationality-wise) per 100k population",
   xaxt = "n"
 )
 
-
-axis(1, at = 1:tail_years, labels = 1:tail_years)
+axis(1,at=1:tail_years,labels=1:tail_years)
 legend("topright",
        legend = c("India", "Bangladesh", "China" ),
        col    = line_color,
        lty    = 1,
        lwd = 3)
 
+
+## Percentage proportion of each country infection incidence
+
+infection_country_proportion <- (infection_country_annual/pop_country_annual)*100
+
+plot(1:tail_years,infection_country_proportion[1,1:tail_years], type = "l", col="darkred",lty="solid",lwd=1)
+lines(1:tail_years,infection_country_proportion[2,1:tail_years], col="darkblue",lty="solid",lwd=1)
+lines(1:tail_years,infection_country_proportion[3,1:tail_years], col="darkgreen",lty="solid",lwd=1)
+
+
 ## Seroprevalence
 
 seropositive_country <- array(out[index_seropositive,,], dim = c(n_country,length(t)))
-print(seropositive_country[1:3,1:10])
+#print(seropositive_country[1:3,1:5])
 
-seropositive_total <- apply(seropositive_country, c(2), sum) 
+seropositive_total <- apply(seropositive_country, 2, sum)
+
+seropositive_total_annual <- calc_yearly_wo_sum(seropositive_total, 365) 
+
+#apply(seropositive_total,1, calc_yearly_wo_sum, time_frequency = 365)
+
+seroprevalence <- 100*seropositive_total_annual/colSums(pop_country_annual)
+
+seroprevalence_country <- t(apply(seropositive_country,1, calc_yearly_wo_sum, time_frequency = 365))/pop_country_annual
 
 
-seropositive_total_annual <- calc_yearly_wo_sum(seropositive_total, 365) #apply(seropositive_total,1, calc_yearly_wo_sum, time_frequency = 365)
+plot(1:run_year, seroprevalence[1:run_year], type="l",lwd=1.1)+
+  lines(rep(mean(seroprevalence),length(seroprevalence)),col="blue")
 
-seroprevalence <- 100*seropositive_total_annual/rowSums(pop_country_annual)
 
-seroprevalence_country <- 100*apply(seropositive_country,1, calc_yearly_wo_sum, time_frequency = 365)/(pop_country_annual)
+plot(1:run_year,seroprevalence_country[1,1:run_year],ylim=c(0.45,0.95),type="l",lwd=1.1,col="darkred")
 
-matplot((seroprevalence_country), type = "l")
+lines(1:run_year,seroprevalence_country[2,1:run_year],type="l", lwd=1.1, col="darkblue")
+lines(1:run_year,seroprevalence_country[3,1:run_year],type="l",lwd=1.1,col="darkgreen")
 
-plot(seroprevalence, type = "l")
+legend("bottomright",legend=c("India","Bangladesh", "China"),col=c("darkred","darkblue","darkgreen"),type="l",lwd=1)
+
