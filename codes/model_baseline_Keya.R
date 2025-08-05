@@ -26,7 +26,7 @@ foi_hum[] <- b*beta_v_to_h[i]*infected_hum[i]/N
 # output(foi_hum[]) <- TRUE
 
 # vector recruitment (w/seasonality)
-recruitment_rate_season <- vector_recruitment*(1+0.22*cos(2*3.141592653589793*t)/365 - 2.93)
+recruitment_rate_season <- vector_recruitment #vector_recruitment*(1+0.22*cos(2*3.141592653589793*t)/365 - 2.93)
 output(recruitment_rate_season) <- TRUE
 
 
@@ -62,7 +62,7 @@ output(seropositive[]) <- TRUE
 ## Human Equations
 #i = country, j = serotype
 #Susceptible to all serotypes
-deriv(S_all[1:n_country]) <- recruitment_rate*N_country[i] - sum(foi_vectors[])*S_all[i] - termination_rate*S_all[i]
+deriv(S_all[1:n_country]) <- exposure_0_array[i]*recruitment_rate*N_country[i] - sum(foi_vectors[])*S_all[i] - termination_rate*S_all[i]
 
 #Infected with serotype i
 deriv(I[1:n_country,1:n_serotypes]) <- foi_vectors[j]*S_all[i] - gamma_1*I[i,j] - termination_rate*I[i,j] 
@@ -71,13 +71,16 @@ deriv(I[1:n_country,1:n_serotypes]) <- foi_vectors[j]*S_all[i] - gamma_1*I[i,j] 
 deriv(C[1:n_country, 1:n_serotypes]) <- gamma_1*I[i,j] - phi*C[i,j] - termination_rate*C[i,j]
 
 #Susceptible for secondary infection
-deriv(S[1:n_country, 1:n_serotypes]) <- phi*C[i,j] - (sum(foi_vectors_sec[])-foi_vectors_sec[j])*S[i,j] - termination_rate*S[i,j]
+deriv(S[1:n_country, 1:n_serotypes]) <- exposure_exact1_array[i]*recruitment_rate*N_country[i]*frac_serotype[j] + phi*C[i,j] - (sum(foi_vectors_sec[])-foi_vectors_sec[j])*S[i,j] - termination_rate*S[i,j]
 
 #Secondary infection
 deriv(I_ij[1:n_country, 1:n_serotypes]) <- foi_vectors_sec[j]*(S_sec[i] - S[i,j]) - gamma_2*I_ij[i,j] - termination_rate*I_ij[i,j]
 
+prod_term[] <- exposure_1plus_array[i]*N_country[i]
+dim(prod_term) <- n_country 
+
 #Recovery
-deriv(R[1:n_country]) <- gamma_2*sum(I_ij[i,])  - termination_rate*R[i]
+deriv(R[1:n_country]) <- recruitment_rate*prod_term[i] + gamma_2*sum(I_ij[i,])  - termination_rate*R[i]
 
 
 ## Vector equations
@@ -117,9 +120,12 @@ n_serotypes <- user()
 beta_h_to_v[] <- user()
 beta_v_to_h[] <- user()
 beta_h_to_v_sec[] <- user() ## new
-n_country_population[] <- user()
+# n_country_population[] <- user()
 exposure_1plus_array[] <- user()
 exposure_exact1_array[] <- user()
+exposure_0_array[] <- user()
+frac_serotype[] <- user()
+dim(frac_serotype) <- n_serotypes
 
 
 # initial conditions
@@ -178,7 +184,8 @@ dim(beta_h_to_v_sec) <- n_serotypes ## new
 dim(beta_v_to_h) <- n_serotypes
 dim(exposure_1plus_array) <- n_country
 dim(exposure_exact1_array) <- n_country
-dim(n_country_population) <- n_country
+dim(exposure_0_array) <- n_country
+# dim(n_country_population) <- n_country
 dim(seropositive) <- n_country
 
 # extra 
