@@ -60,7 +60,7 @@ beta_h_to_v <- c(0.20, 0.20, 0.20, 0.20)
 beta_h_to_v_sec <-c(0.20,0.20,0.20,0.20)
 
 # Transmission probability (vector to human)
-beta_v_to_h <- c(0.166, 0.176, 0.152, 0.144)
+beta_v_to_h <- c(0.166, 0.176, 0.152, 0.148)
 
 
 # Infectious period (primary)
@@ -130,7 +130,7 @@ exposure_1plus_array <- unname(exposure_matrix[, "more_than_one_exposure"])
 
 # Primary symptomatic infections
 I0 <- array(0, dim = c(n_country, n_serotypes))
-frac_serotype <- c(0.25, 0.25, 0.25, 0.25)
+frac_serotype <-c(0.35, 0.45, 0.15, 0.05)# c(0.25, 0.25, 0.25, 0.25) #
 
 C0 = 0*t(frac_serotype*t(array(rep(n_country_population*exposure_exact1_array,n_serotypes), dim = c(n_country,n_serotypes) )))
 S0 = 1*t(frac_serotype*t(array(rep(n_country_population*exposure_exact1_array,n_serotypes), dim = c(n_country,n_serotypes) )))
@@ -143,7 +143,7 @@ R0 <- n_country_population*exposure_1plus_array
 S0_all =  n_country_population - rowSums(I0 + C0 + S0) - rowSums(I_ij0) - R0
 
 #factor
-factor <- 0.065 # 0.0091
+factor <- 0.065  #0.065 
   
 
 # Susceptible vectors
@@ -237,7 +237,7 @@ index_pop_country <- model$info()$index$N_country
 index_seropositive <- model$info()$index$seropositive
 
 
-target_annual_foi <- 0.1
+target_annual_foi <- 0.05
 
 foi <- array(out[index_foi,,],dim=c(n_serotypes,length(t)))
 
