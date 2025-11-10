@@ -8,6 +8,7 @@ library(ggplot2)
 library(dplyr)
 library(here)
 
+
 ## Human population parameters
 
 
@@ -84,19 +85,17 @@ hospital_2 <- 0.30
 # Hospitalization rate for primary infection
 hospital_1 <- 0.30/4
 
-
-
 ## Sero-prevalence data
 
 ## FOI sampling
-
+## could add for loop from here
 ## min and max interval for FOI
 foi_india <- c(0.0785, 0.0872)
-foi_bangladesh <- c(0.026, 0.071)
-foi_china <- c(0.002, 0.04)
+foi_bangladesh <- c(0.015, 0.017)
+foi_china <- c(0.0003, 0.0164)
 
 ## number of samples generated
-samples <- 5
+samples <- 250
 
 ## Getting samples for FOI
 sample_foi_india <- round(runif(samples, min(foi_india), max(foi_india)),4)
@@ -111,7 +110,7 @@ country_sample <- data.frame(
 )
 
 ## mid_age calculation
-mid_age <- mean(18:60) + 0.5
+mid_age <- mean(18:60) + 0.5 ## sensitivity analysis here
 
 ## seropostive function
 seropositives <- function(mean_foi, age = mid_age){
@@ -134,91 +133,35 @@ exposure_matrix_china <- sapply(china_foi/4, seropositives)
 levels <- c("no_exposure", "exactly_one_exposure", "more_than_one_exposure")
 countries <- colnames(country_sample)
 
-lapply(1:samples, function(s){
-  mat <- sapply(country_sample[s, ]/4, seropositives)
-  t(mat)
-})
-
 exposure_mat <- array(
-  lapply(1:n_samples, function(s){
-    mat <- sapply(country_sample[s, ]/4, seropositives)
-    t(mat)
-  })
+  unlist(
+    lapply(1:samples, function(s){
+      mat <- sapply(country_sample[s, ] / 4, seropositives)
+      t(mat) ## new addition
+    })
+  ),
+  dim = c(length(countries), length(levels),samples),
+  dimnames = list(countries, levels, 1:samples)
 )
 
-print(exposure_mat)
 
 ## Exposure matrix
-exposure_0_array <- unname(exposure_mat[, "no_exposure",])
+exposure_0_array <- unname(exposure_mat[,"no_exposure",])
 exposure_exact1_array <- unname(exposure_mat[, "exactly_one_exposure",])
 exposure_1plus_array <- unname(exposure_mat[, "more_than_one_exposure",])
 
-
-## Initial conditions 
-pop_mat <- matrix(n_country_population, n_country, samples)
-
-I0_mat <- matrix(0, n_country, samples)
-C0_mat <- 0*exposure_exact1_array*pop_mat
-S0_mat <- 1*exposure_exact1_array*pop_mat
-
-
-I_ij0_mat <- matrix(0,n_country,samples)
-R0_mat <- exposure_1plus_array*pop_mat
-
-S0_all_mat <- pop_mat - (C0_mat + S0_mat + R0_mat + I_ij0_mat + I0_mat)
-
-frac_serotype <- c(0.35, 0.45, 0.15, 0.05)
-
-#(0.35, 0.45, 0.15, 0.05)
-#(0.25,0.25,0.25,0.25)
-
-
 #factor
-vector_factor <-  0.0695
+vector_factor <-  0.0463
 
-#0.023 for FOI = 0.01 #0.0664 and 0.0695for FOI = 0.1     #0.042 and 0.444 for FOI = 0.05
+
 
 # Susceptible vectors
 
-S_v0_scalar <- vector_factor * N
+S_v0 <- vector_factor * N
 
-E_v0_scalar <- c(0,0,0,0)            
+E_v0 <- c(0,0,0,0)            
 
-I_v0_scalar <- c(5, 1, 1e-5, 1e-6)       
-
-path_to_model <- here::here("model_baseline_Keya.R")
-dengue_model <- odin.dust::odin_dust(path_to_model)
-
-
-## TODO: ADD par and simulate model
-
-#plot(out[index_I[1],,])
-
-start = Sys.time()
-
-index_S_all <- model$info()$index$S_all
-index_I <- model$info()$index$I
-index_A <- model$info()$index$A
-index_C <- model$info()$index$C
-index_S <- model$info()$index$S
-index_Iij <- model$info()$index$I_ij
-index_R <- model$info()$index$R
-
-index_Sm <- model$info()$index$S_v
-index_Em <- model$info()$index$E_v
-index_Im <- model$info()$index$I_v
-index_foi <- model$info()$index$foi_vectors
-index_total_infection <- model$info()$index$total_infection
-index_total_susceptible <- model$info()$index$total_susceptible
-index_pop_country <- model$info()$index$N_country
-index_seropositive <- model$info()$index$seropositive
-index_pri_inf <- model$info()$index$pri_inf
-index_sec_inf <- model$info()$index$sec_inf
-
-
-target_annual_foi <- 0.1
-
-foi <- array(out[index_foi,,],dim=c(n_serotypes,length(t)))
+I_v0 <- c(5, 1, 1e-5, 1e-6)
 
 #function to calculate annual foi
 calc_yearly<-function(mat){
@@ -229,16 +172,120 @@ calc_yearly_wo_sum <- function(mat,time_frequency){
   mat[seq(time_frequency,length(mat),by=time_frequency)]
 }
 
-## calculate annual foi
-foi_annual <- calc_yearly(colSums(foi))
+## set up foi average
+foi_average <- vector("double", length = length(samples))
 
-print(mean(tail(foi_annual,20)))
+## common pars
 
+common_par <- list(
+  n_country = n_country,
+  n_serotypes = n_serotypes,
+  b = b,
+  beta_h_to_v = beta_h_to_v,
+  beta_h_to_v_sec = beta_h_to_v_sec,
+  beta_v_to_h = beta_v_to_h,
+  rho_1 = rho_1,
+  rho_2 = rho_2,
+  phi = phi,
+  hospital_1 = hospital_1,
+  hospital_2 = hospital_2,
+  termination_rate = termination_rate,
+  recruitment_rate = recruitment_rate,
+  daily_death_rate = daily_death_rate,
+  vector_recruitment = vector_recruitment,
+  ex_incubation_period = ex_incubation_period,
+  frac_serotype = frac_serotype,
+  gamma_1 = gamma_1,
+  gamma_2 = gamma_2
+)
+
+# path to model
+path_to_model <- here::here("model_baseline_Keya.R")
+dengue_model <- odin.dust::odin_dust(path_to_model)
+
+## main loop to set initial conditions + run code
+for (s in seq_len(samples)){
+  exp0_s <- exposure_0_array[, s]
+  exp1_s <- exposure_exact1_array[, s]
+  exp1plus_s <- exposure_1plus_array[, s]
+  
+  S0 <- t(frac_serotype * t(array(rep(n_country_population * exp1_s, n_serotypes),
+                                  dim = c(n_country, n_serotypes))))
+  C0   <- 0 * S0
+  I0   <- array(0, dim = c(n_country, n_serotypes))
+  I_ij0 <- array(0, dim = c(n_country, n_serotypes))
+  R0   <- n_country_population * exp1plus_s
+  S0_all <- n_country_population - rowSums(I0 + C0 + S0) - rowSums(I_ij0) - R0
+  
+  #print(exposure_mat)
+  par <- c(common_par, list(
+    S0_all = S0_all,
+    I0 = I0,
+    C0 = C0,
+    S0 = S0,
+    I_ij0 = I_ij0,
+    R0 = R0,
+    S0_all = S0_all,
+    S_v0 = S_v0,
+    E_v0 = E_v0,
+    I_v0 = I_v0,
+    exposure_0_array = exp0_s,
+    exposure_exact1_array = exp1_s,
+    exposure_1plus_array = exp1plus_s
+  ))
+  
+  model <- dengue_model$new(par, time = 1, n_particles = 1, ode_control = list(max_steps = 10000000, 
+                                                                               step_size_min = 1e-14,
+                                                                               debug_record_step_times = TRUE))
+  ## create array of time in day (required for solving ode)
+  run_year <- 500
+  t <- seq(1,(run_year*365), by = 1)
+  
+  ## Simulate the model
+  out <- model$simulate(t)
+  
+  #plot(out[index_I[1],,])
+  
+  start = Sys.time()
+  
+  index_S_all <- model$info()$index$S_all
+  index_I <- model$info()$index$I
+  index_A <- model$info()$index$A
+  index_C <- model$info()$index$C
+  index_S <- model$info()$index$S
+  index_Iij <- model$info()$index$I_ij
+  index_R <- model$info()$index$R
+  
+  index_Sm <- model$info()$index$S_v
+  index_Em <- model$info()$index$E_v
+  index_Im <- model$info()$index$I_v
+  index_foi <- model$info()$index$foi_vectors
+  index_total_infection <- model$info()$index$total_infection
+  index_total_susceptible <- model$info()$index$total_susceptible
+  index_pop_country <- model$info()$index$N_country
+  index_seropositive <- model$info()$index$seropositive
+  index_pri_inf <- model$info()$index$pri_inf
+  index_sec_inf <- model$info()$index$sec_inf
+  
+  
+  target_annual_foi <- 0.1
+  foi <- array(out[index_foi,,],dim=c(n_serotypes,length(t)))
+  
+  ## calculate annual foi
+  foi_annual <- calc_yearly(colSums(foi))
+  
+  ## calculate mean foi
+  foi_average[s] = mean(tail(foi_annual,20))
+}
+
+foi_average
 
 ## Plot annual foi
-plot(foi_annual, type="l",ylim=c(0,0.5),xlab="Time (Years)", ylab="Annual FOI",main="Annual Force of Infection")+
-  lines(rep(mean(tail(foi_annual, 20)),length(foi_annual)),type="l",col="red")+
-  lines(rep(target_annual_foi,length(foi_annual)),type="l",col="blue")
+plot(foi_average, type="l",ylim=c(0.08,0.15),xlab="Number of iterations", ylab="Annual FOI",main="Average FOI")+
+  lines(rep(mean(foi_average),length(foi_average)),type="l",col="red")+
+  lines(rep(0.1,length(foi_average)),type="l",col="blue")
+
+mean(foi_average)
 
 
 
