@@ -121,6 +121,7 @@ seropositives <- function(mean_foi, age = mid_age){
   return(c(no_exposure = no_exp, exactly_one_exposure = exactly_one_exp, more_than_one_exposure = more_than_one_exp))
 }
 
+
 ## looping over samples + exposure matrix
 india_foi <- country_sample$India
 bangladesh_foi <- country_sample$Bangladesh
@@ -137,7 +138,7 @@ exposure_mat <- array(
   unlist(
     lapply(1:samples, function(s){
       mat <- sapply(country_sample[s, ] / 4, seropositives)
-      t(mat) ## new addition
+      t(mat) 
     })
   ),
   dim = c(length(countries), length(levels),samples),
@@ -150,9 +151,14 @@ exposure_0_array <- unname(exposure_mat[,"no_exposure",])
 exposure_exact1_array <- unname(exposure_mat[, "exactly_one_exposure",])
 exposure_1plus_array <- unname(exposure_mat[, "more_than_one_exposure",])
 
-#factor
-vector_factor <-  0.0463
+frac_serotype <- c(0.25, 0.25, 0.25, 0.25)
 
+#factor
+vector_factor <- 0.01617
+  
+  #0.045 for FOI = 0.1
+  #0.0288 for FOI = 0.05
+  # 0.01617 for FOI = 0.01
 
 
 # Susceptible vectors
@@ -268,7 +274,7 @@ for (s in seq_len(samples)){
   index_sec_inf <- model$info()$index$sec_inf
   
   
-  target_annual_foi <- 0.1
+  target_annual_foi <- 0.05
   foi <- array(out[index_foi,,],dim=c(n_serotypes,length(t)))
   
   ## calculate annual foi
@@ -278,14 +284,38 @@ for (s in seq_len(samples)){
   foi_average[s] = mean(tail(foi_annual,20))
 }
 
-foi_average
-
 ## Plot annual foi
-plot(foi_average, type="l",ylim=c(0.08,0.15),xlab="Number of iterations", ylab="Annual FOI",main="Average FOI")+
+plot(foi_average, type="l",ylim=c(max(foi_average)+0.05,min(foi_average)-0.05),xlab="Number of iterations", ylab="Annual FOI",main="Average FOI")+
   lines(rep(mean(foi_average),length(foi_average)),type="l",col="red")+
   lines(rep(0.1,length(foi_average)),type="l",col="blue")
 
-mean(foi_average)
+print(mean(foi_average))
+
+mean_foi <- mean(foi_average)
+sd_foi <- sd(foi_average)
+se <- sd_foi/(sqrt(length(foi_average)))
+
+lower <- mean_foi - 1.96*se
+upper <- mean_foi + 1.96*se
+
+
+plot_foi_average <- data.frame(iterations = seq_along(foi_average),
+                               foi = foi_average)
+
+foi_plot <- ggplot(plot_foi_average, aes(x = iterations, y = foi)) +
+  geom_line(color = "black") +
+  geom_hline(yintercept = mean_foi, color = "red", size = 0.5) +
+  geom_ribbon(aes(ymin = lower, ymax = upper),
+              alpha = 0.2, fill = "darkgreen") +
+  ggtitle("Iterations for average FOI") +
+  xlab("Iterations") +
+  ylab("FOI")
+
+foi_plot + theme_bw()
+
+
+
+
 
 
 
