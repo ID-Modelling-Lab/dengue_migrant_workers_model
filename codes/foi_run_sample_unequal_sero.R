@@ -114,6 +114,8 @@ frac_sero_india <- c(0.28, 0.26, 0.32, 0.14)
 frac_sero_bangladesh <- c(0.11, 0.30, 0.57, 0.02)
 frac_sero_china <- c(0, 0.88, 0.12, 0)
 
+frac_sero_mat <- t(array(c(0.28, 0.11, 0, 0.26, 0.30, 0.88, 0.32, 0.57, 0.12, 0.14, 0.02, 0), dim=c(3,4)))
+
 frac_sero_list <- list(
   India = frac_sero_india,
   Bangladesh = frac_sero_bangladesh,
@@ -149,7 +151,7 @@ countries <- colnames(country_sample)
 
 
 exposure_mat <- array(
-  NA_real_,
+  0,
   dim=c(length(countries), length(levels), samples),
   dimnames = list(countries, levels, 1:samples)
 )
@@ -169,8 +171,8 @@ exposure_0_array <- unname(exposure_mat[,"no_exposure",])
 exposure_exact1_array <- unname(exposure_mat[, "exactly_one_exposure",])
 exposure_1plus_array <- unname(exposure_mat[, "more_than_one_exposure",])
 
-dim(exposure_mat)
-print(exposure_mat["India", ,])
+
+print(exposure_0_array)
 
 #factor
 vector_factor <- 0.01617
@@ -225,7 +227,7 @@ common_par <- list(
 )
 
 # path to model
-path_to_model <- here::here("model_baseline_Keya.R")
+path_to_model <- here::here("~/internships/code/model_baseline_Keya.R")
 dengue_model <- odin.dust::odin_dust(path_to_model)
 
 ## main loop to set initial conditions + run code
@@ -234,8 +236,9 @@ for (s in seq_len(samples)){
   exp1_s <- exposure_exact1_array[, s]
   exp1plus_s <- exposure_1plus_array[, s]
   
-  S0 <- t(frac_serotype * t(array(rep(n_country_population * exp1_s, n_serotypes),
+  S0 <- t(frac_sero_mat* t(array(rep(n_country_population * exp1_s, n_serotypes),
                                   dim = c(n_country, n_serotypes))))
+
   C0   <- 0 * S0
   I0   <- array(0, dim = c(n_country, n_serotypes))
   I_ij0 <- array(0, dim = c(n_country, n_serotypes))
@@ -256,7 +259,8 @@ for (s in seq_len(samples)){
     I_v0 = I_v0,
     exposure_0_array = exp0_s,
     exposure_exact1_array = exp1_s,
-    exposure_1plus_array = exp1plus_s
+    exposure_1plus_array = exp1plus_s,
+    n_country_population = n_country_population
   ))
   
   model <- dengue_model$new(par, time = 1, n_particles = 1, ode_control = list(max_steps = 10000000, 
@@ -323,7 +327,7 @@ plot_foi_average <- data.frame(iterations = seq_along(foi_average),
 
 foi_plot <- ggplot(plot_foi_average, aes(x = iterations, y = foi)) +
   geom_line(color = "black") +
-  geom_hline(yintercept = mean_foi, color = "red", size = 0.5) +
+  geom_hline(yintercept = mean_foi, color = "red", linewidth = 0.5) +
   geom_ribbon(aes(ymin = lower, ymax = upper),
               alpha = 0.2, fill = "darkgreen") +
   ggtitle("Iterations for average FOI") +
