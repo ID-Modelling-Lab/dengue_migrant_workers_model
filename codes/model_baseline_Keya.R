@@ -45,6 +45,9 @@ age_symp_inf_sec[] <- rho_2*sum(age_sero_symp_inf_sec[i,])
 # Total infection
 pri_inf[,] <- foi_vectors[j] * S_all[i]
 sec_inf[,] <- foi_vectors[j] * (S_sec[i] - S[i,j])
+output(pri_inf[,]) <- TRUE
+output(sec_inf[,]) <- TRUE
+
 total_infection[,] <- pri_inf[i,j] + sec_inf[i,j]
 output(total_infection[,]) <- TRUE
 
@@ -77,10 +80,11 @@ deriv(S[1:n_country, 1:n_serotypes]) <- exposure_exact1_array[i]*recruitment_rat
 deriv(I_ij[1:n_country, 1:n_serotypes]) <- foi_vectors_sec[j]*(S_sec[i] - S[i,j]) - gamma_2*I_ij[i,j] - termination_rate*I_ij[i,j]
 
 prod_term[] <- exposure_1plus_array[i]*N_country[i]
-dim(prod_term) <- n_country 
+dim(prod_term) <- n_country
 
 #Recovery
 deriv(R[1:n_country]) <- recruitment_rate*prod_term[i] + gamma_2*sum(I_ij[i,])  - termination_rate*R[i]
+
 
 
 ## Vector equations
