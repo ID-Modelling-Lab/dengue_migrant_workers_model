@@ -109,12 +109,18 @@ country_sample <- data.frame(
   China = sample_foi_china
 )
 
-## assumption 2: unequal serotypes
+## assumption 2: unequal serotypes (how did you get these numbers?)
+## If you assumed those, fine, we can do sensitivity analysis on this
+## If equal serotype then, all these numbers will be 0.25 right?
+
 frac_sero_india <- c(0.28, 0.26, 0.32, 0.14)
 frac_sero_bangladesh <- c(0.11, 0.30, 0.57, 0.02)
 frac_sero_china <- c(0, 0.88, 0.12, 0)
 
-frac_sero_mat <- t(array(c(0.28, 0.11, 0, 0.26, 0.30, 0.88, 0.32, 0.57, 0.12, 0.14, 0.02, 0), dim=c(3,4)))
+# frac_sero_mat <- t(array(c(0.28, 0.11, 0, 0.26, 0.30, 0.88, 0.32, 0.57, 0.12, 0.14, 0.02, 0), dim=c(3,4)))
+## can write it in terms of variables you defined above, so no need type them again
+frac_sero_mat <- t(array(c(frac_sero_india, frac_sero_bangladesh,frac_sero_china), dim = c(4,3)))
+
 
 frac_sero_list <- list(
   India = frac_sero_india,
@@ -127,6 +133,7 @@ mid_age <- mean(18:60) + 0.5 ## sensitivity analysis here
 
 ## unequal serotype distribution
 seropositive_diff <- function(mean_foi, fractional_serotype, age = mid_age){
+  
   lambda_i = 4*mean_foi*fractional_serotype
   lambda_tot = sum(lambda_i)
   
@@ -318,6 +325,8 @@ mean_foi <- mean(foi_average)
 sd_foi <- sd(foi_average)
 se <- sd_foi/(sqrt(length(foi_average)))
 
+
+## Use quantile to calculate the 95% simulation interval
 lower <- mean_foi - 1.96*se
 upper <- mean_foi + 1.96*se
 

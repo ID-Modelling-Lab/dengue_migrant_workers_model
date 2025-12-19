@@ -1,0 +1,90 @@
+---
+title: "plotting"
+author: "Abhishek Senapati"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(here)
+library(ggplot2)
+library(ggpubr)
+library(tidyr)
+library(dplyr)
+library(reshape2)
+library(cowplot)
+```
+
+
+### Plotting annual FOI
+```{r}
+## Functions to extract variables from the .rds file
+## extract variable from .rds file which are stratified according to serotype only
+
+extract_variable_sero <- function(rds_file, variable_name) {
+  
+  result <- readRDS(here::here("model_output",  rds_file) )
+  
+  out <- result$output[[variable_name]]
+  
+  n_sample = result$n_sample
+  n_year = result$n_year
+  n_sero = result$n_sero
+  
+  
+  y <- array(out, dim = c(n_sample, n_sero, n_year))
+  
+
+
+  return(y)
+}
+
+
+## Now Plot
+
+annual_foi_sero <- extract_variable_sero(
+  rds_file = "diff_sero_exposure_target_foi_0.01.rds",
+  variable_name = "sample_foi_annual")
+
+## summing foi over serotypes 
+annual_foi_agg <- apply(annual_foi_sero, c(1,3), sum)
+
+mean_year <- colMeans(annual_foi_agg)
+
+lower_year <- apply(annual_foi_agg, 2, quantile, probs = 0.025)
+upper_year <- apply(annual_foi_agg, 2, quantile, probs = 0.975)
+
+df <- data.frame(
+  year  = 1:dim(annual_foi_agg)[2],
+  mean  = mean_year,
+  lower = lower_year,
+  upper = upper_year
+)
+
+tail_year <- 100
+
+df_tail <-  df %>%
+  dplyr::filter(year > max(year) - tail_year)
+
+library(ggplot2)
+
+ggplot(df_tail, aes(x = year)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill="steelblue", alpha = 0.25) +
+  geom_line(aes(y = mean), linewidth = .1) +
+  labs(
+    x = "Year",
+    y = "Outcome",
+    title = "Mean trajectory with 95% uncertainty interval"
+  ) +
+  theme_minimal()
+
+
+
+
+
+```
+
