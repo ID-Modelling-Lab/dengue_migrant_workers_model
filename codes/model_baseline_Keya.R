@@ -74,7 +74,9 @@ deriv(I[1:n_country,1:n_serotypes]) <- foi_vectors[j]*S_all[i] - gamma_1*I[i,j] 
 deriv(C[1:n_country, 1:n_serotypes]) <- gamma_1*I[i,j] - phi*C[i,j] - termination_rate*C[i,j]
 
 #Susceptible for secondary infection
-deriv(S[1:n_country, 1:n_serotypes]) <- exposure_exact1_array[i]*recruitment_rate*N_country[i]*frac_serotype[j] + phi*C[i,j] - (sum(foi_vectors_sec[])-foi_vectors_sec[j])*S[i,j] - termination_rate*S[i,j]
+# deriv(S[1:n_country, 1:n_serotypes]) <- exposure_exact1_array[i]*recruitment_rate*N_country[i]*frac_serotype[j] + phi*C[i,j] - (sum(foi_vectors_sec[])-foi_vectors_sec[j])*S[i,j] - termination_rate*S[i,j]
+deriv(S[1:n_country, 1:n_serotypes]) <- exposure_exact1_array[i]*recruitment_rate*N_country[i]*frac_sero_mat[i,j] + phi*C[i,j] - (sum(foi_vectors_sec[])-foi_vectors_sec[j])*S[i,j] - termination_rate*S[i,j]
+
 
 #Secondary infection
 deriv(I_ij[1:n_country, 1:n_serotypes]) <- foi_vectors_sec[j]*(S_sec[i] - S[i,j]) - gamma_2*I_ij[i,j] - termination_rate*I_ij[i,j]
@@ -128,8 +130,8 @@ beta_h_to_v_sec[] <- user() ## new
 exposure_1plus_array[] <- user()
 exposure_exact1_array[] <- user()
 exposure_0_array[] <- user()
-frac_serotype[] <- user()
-dim(frac_serotype) <- n_serotypes
+frac_sero_mat[,] <- user()
+dim(frac_sero_mat) <- c(n_country,n_serotypes)
 
 
 # initial conditions
